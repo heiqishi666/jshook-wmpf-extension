@@ -1,6 +1,17 @@
 # jshook WMPF 扩展
 
-为已有 jshook MCP 增加 Windows PC 微信小程序调试能力。只需配置一个 MCP；扩展自动安装并管理独立的 WMPFDebugger 后端，不要求用户另行克隆或启动 WMPF。
+**本项目是 [jshookmcp](https://github.com/vmoranv/jshookmcp) 的第三方 Plugin 扩展，不能独立作为 MCP 服务运行。使用前必须先安装并配置兼容版本的 jshookmcp，确认 Agent 能调用它的工具。** 本扩展不会替你安装 jshookmcp 主服务，也不需要新增第二个 MCP 服务。
+
+为已有 jshook MCP 增加 Windows PC 微信小程序调试能力。扩展自动安装并管理独立的 WMPFDebugger 后端，不要求用户另行克隆或启动 WMPF。
+
+## 前置准备：先安装 jshookmcp
+
+1. **尚未安装主服务**：先按 [jshookmcp 官方仓库](https://github.com/vmoranv/jshookmcp) 或 [官方快速开始](https://vmoranv.github.io/jshookmcp/guide/getting-started.html) 在你的 AI 客户端中配置 jshook MCP。当前扩展验证版本为 0.3.5；不要假设上游 latest 与本扩展始终兼容。
+2. **已经安装主服务**：保留现有启动方式，检查版本和连接状态，无须重新安装。让 Agent 调用 `search_tools` 或其他已暴露的内置工具，确认主服务可用。
+3. **准备本机环境**：Windows、Git、带 npm 的 Node.js、PC 微信及 Chrome。微信需能够正常打开小程序；建议使用 Node 24.15.0。WMPF 后端由扩展的安装工具准备。
+4. **确认扩展模式**：当前已验证的 jshook 0.3.5 使用 `MCP_TOOL_PROFILE=full`，具体限制见下方。主服务可用后，再安装本扩展。
+
+安装顺序：**jshookmcp 主服务 → 本扩展 → 扩展自动准备 WMPF 后端 → 用户打开小程序和 Chrome 调试页面**。
 
 ## 安装
 
