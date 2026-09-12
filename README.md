@@ -9,6 +9,8 @@
 克隆本仓库，在仓库根目录执行：
 
 ```powershell
+git clone https://github.com/heiqishi666/jshook-wmpf-extension.git
+cd jshook-wmpf-extension
 npm ci --workspaces=false
 npm run typecheck
 npm test

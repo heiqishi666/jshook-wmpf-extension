@@ -1,6 +1,6 @@
 # 给接收方 Agent
 
-请把本仓库作为 Plugin 安装到我已有的 jshook MCP。先读取 README.md 和 agent-guide.md，核对本机 jshook 版本和配置，安装到独立目录。执行 npm ci、类型检查、测试和构建；备份并合并已有扩展路径与严格加载摘要，不覆盖其他配置。重启会影响活动任务时先询问。
+请从 https://github.com/heiqishi666/jshook-wmpf-extension 获取本扩展，并作为 Plugin 安装到我已有的 jshook MCP。先读取 README.md 和 agent-guide.md，核对本机 jshook 版本和配置，安装到独立目录。执行 npm ci、类型检查、测试和构建；备份并合并已有扩展路径与严格加载摘要，不覆盖其他配置。重启会影响活动任务时先询问。
 
 加载并确认七个 wmpf 工具，调用 wmpf_status。缺少后端环境时，说明安装内容、专用缓存路径及原生依赖安装脚本；已有明确安装授权就继续，否则先询问。遇到客户端审批、系统工具缺失或管理员权限要求时遵守实际限制。
 

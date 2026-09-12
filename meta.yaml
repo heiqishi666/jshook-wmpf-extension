@@ -1,2 +1,3 @@
 name: WMPF Runtime Bridge
 description: Manage a local WeChat miniapp debugging backend and attach jshook to a verified target.
+source_repo: https://github.com/heiqishi666/jshook-wmpf-extension
