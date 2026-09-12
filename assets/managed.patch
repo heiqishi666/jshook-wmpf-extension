@@ -1,0 +1,164 @@
+diff --git a/frida/hook.js b/frida/hook.js
+index 882956b..4e93ae7 100644
+--- a/frida/hook.js
++++ b/frida/hook.js
+@@ -75,7 +75,7 @@ const hookOnLoadScene = (a1, sceneOffsets) => {
+     // 1308: minigame?
+     const sceneNumberArray = [
+         1005, 1007, 1008, 1011, 1012, 1027, 1035, 1037, 1053, 1074, 1145, 1178,
+-        1256, 1260, 1302, 1308,
++        1232, 1256, 1260, 1302, 1308,
+     ];
+     if (!sceneNumberArray.includes(miniappScenePtr.readInt())) {
+         return;
+@@ -132,3 +132,4 @@ const main = () => {
+ };
+ 
+ main();
++
+diff --git a/src/index.ts b/src/index.ts
+index 88e68e6..9f4a82e 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -20,6 +20,7 @@ type HookConfig = {
+     SceneOffsets: number[];
+ };
+ 
++// Only one service is allowed per process; importing this module starts nothing.
+ const debugMessageEmitter = new DebugMessageEmitter();
+ 
+ const bufferToHexString = (buffer: ArrayBuffer) => {
+@@ -29,7 +30,7 @@ const bufferToHexString = (buffer: ArrayBuffer) => {
+ };
+ 
+ const debugServer = (options: CliOptions, logger: Logger): WebSocketServer  => {
+-    const wss = new WebSocketServer({ port: options.debugPort });
++    const wss = new WebSocketServer({ host: "127.0.0.1", port: options.debugPort });
+     logger.info(
+         `[server] debug server running on ws://localhost:${options.debugPort}`,
+     );
+@@ -65,12 +66,18 @@ const debugServer = (options: CliOptions, logger: Logger): WebSocketServer  => {
+     };
+ 
+     wss.on("connection", (ws: WebSocket) => {
++        if (process.send && wss.clients.size > 1) {
++            ws.close(1013, "Managed mode accepts one runtime connection");
++            return;
++        }
++        process.send?.({ type: "wmpf", state: "target_connected" });
+         logger.info("[miniapp] miniapp client connected");
+         ws.on("message", onMessage);
+         ws.on("error", (err) => {
+             logger.error("[miniapp] miniapp client err:", err);
+         });
+         ws.on("close", () => {
++            process.send?.({ type: "wmpf", state: "target_disconnected" });
+             logger.info("[miniapp] miniapp client disconnected");
+         });
+     });
+@@ -111,7 +118,7 @@ const debugServer = (options: CliOptions, logger: Logger): WebSocketServer  => {
+ };
+ 
+ const proxyServer = (options: CliOptions, logger: Logger): WebSocketServer => {
+-    const wss = new WebSocketServer({ port: options.cdpPort });
++    const wss = new WebSocketServer({ host: "127.0.0.1", port: options.cdpPort });
+     logger.info(
+         `[server] proxy server running on ws://localhost:${options.cdpPort}`,
+     );
+@@ -212,6 +219,7 @@ const fridaServer = async (options: CliOptions, logger: Logger): Promise<frida.S
+     // attach to process
+     const session = await localDevice.attach(wmpfPid);
+ 
++    try {
+     // find hook script
+     const projectRoot = path.join(
+         path.dirname(
+@@ -275,24 +283,76 @@ const fridaServer = async (options: CliOptions, logger: Logger): Promise<frida.S
+     );
+     logger.info(`[frida] you can now open any miniapps`);
+     return session;
++    } catch (error) {
++        await session.detach().catch(() => {});
++        throw error;
++    }
++};
++
++let serviceActive = false;
++export const startService = async (options: CliOptions, logger: Logger) => {
++    if (serviceActive) throw new Error("A debugging service is already active in this process");
++    serviceActive = true;
++    let debugWss: WebSocketServer | undefined;
++    let proxyWss: WebSocketServer | undefined;
++    let fridaSession: frida.Session | undefined;
++    let stopping: Promise<void> | undefined;
++    const stop = () => stopping ??= (async () => {
++        for (const server of [debugWss, proxyWss]) {
++            if (!server) continue;
++            for (const client of server.clients) client.terminate();
++            await new Promise<void>((resolve) => server.close(() => resolve()));
++        }
++        debugMessageEmitter.removeAllListeners();
++        try { await fridaSession?.detach(); }
++        finally { serviceActive = false; }
++    })();
++    const listen = (server: WebSocketServer) => new Promise<void>((resolve, reject) => {
++        server.once("error", reject);
++        server.once("listening", () => { server.off("error", reject); resolve(); });
++    });
++    try {
++        debugWss = debugServer(options, logger);
++        await listen(debugWss);
++        proxyWss = proxyServer(options, logger);
++        await listen(proxyWss);
++        process.send?.({ type: "wmpf", state: "server_ready", pid: process.pid });
++        fridaSession = await fridaServer(options, logger);
++        process.send?.({ type: "wmpf", state: "runtime_attached", pid: process.pid });
++        return { stop };
++    } catch (error) {
++        await stop().catch(() => {});
++        throw error;
++    }
+ };
+ 
+ const main = async () => {
+     const options = parse_cli_options();
+     const logger = create_logger(options);
+-    const debugWss = debugServer(options, logger);
+-    const proxyWss = proxyServer(options, logger);
+-    const fridaSession = await fridaServer(options, logger);
+-
+-    process.on("SIGINT", async () => {
+-        logger.info("[server] shutting down...");
+-        debugWss.close();
+-        proxyWss.close();
+-        await fridaSession.detach();
++    let service: Awaited<ReturnType<typeof startService>> | undefined;
++    let shutdownRequested = false;
++    const shutdown = async () => {
++        shutdownRequested = true;
++        if (!service) return;
++        await service.stop();
+         process.exit(0);
++    };
++    process.on("SIGINT", () => void shutdown());
++    process.on("SIGTERM", () => void shutdown());
++    // IPC is private to the spawning parent; no public shutdown listener.
++    process.on("message", (message: unknown) => {
++        if ((message as { type?: string })?.type === "wmpf_shutdown") void shutdown();
+     });
++    process.on("disconnect", () => void shutdown());
++    try {
++        service = await startService(options, logger);
++        if (shutdownRequested) await shutdown();
++    } catch (error) {
++        process.send?.({ type: "wmpf", state: "failed", error: String(error) });
++        logger.error(String(error));
++        process.exitCode = 1;
++        if (process.connected) process.disconnect();
++    }
+ };
+ 
+-(async () => {
+-    await main();
+-})();
++if (require.main === module) void main();
