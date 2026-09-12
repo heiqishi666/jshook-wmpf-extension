@@ -23,7 +23,7 @@ npm run build
 (Get-FileHash ./dist/manifest.js -Algorithm SHA256).Hash.ToLowerInvariant()
 ```
 
-保留原配置，不能覆盖已有扩展根目录或摘要列表。环境变量变化需要重启对应 MCP；重启会影响它持有的调试资源。然后调用 `reload_extensions`、`list_extensions`，核对以下七个工具。不要在提供调试服务时反复 reload。
+保留原配置，不能覆盖已有扩展根目录或摘要列表。环境变量变化需要重启对应 MCP；重启会影响它持有的调试资源。默认 search 模式下，先通过 `search_tools` 发现管理工具，再调用 `activate_tools({names:["reload_extensions","list_extensions"]})`，然后调用 `reload_extensions`、`list_extensions`，核对以下七个工具。不要在提供调试服务时反复 reload。
 
 ## 使用
 
@@ -39,7 +39,7 @@ npm run build
 
 先检查环境。missing 时，已有环境安装授权则调用 `wmpf_install({authorized:true})`；否则解释下载、目录与原生依赖安装脚本并询问。该字段不能替代客户端审批。ready 后调用 `wmpf_start({})`，保存 serviceId 和 endpoint。
 
-默认提示用户手动打开小程序，再在 Chrome 地址栏访问工具返回的 DevTools URL（默认端口 62000）。之后按真实 AppID 选择目标，排除 preload 页面，使用 jshook 内置脚本、断点及网络工具。不要自动登录或重放业务请求。
+默认提示用户手动打开小程序，再在 Chrome 地址栏访问工具返回的 DevTools URL（默认端口 62000）。之后按真实 AppID 选择目标，排除 preload 页面，使用 jshook 内置脚本、断点及网络工具。search 模式下先激活 browser_attach、browser_attach_cdp_target、browser_evaluate_cdp_target 及所需分析工具，避免尚未激活导致调用失败。不要自动登录或重放业务请求。
 
 用户仍需调试时保持所属 MCP 实例运行；清理临时断点不等于停止服务。仅在用户要求停止或明确的一次性测试结束时调用 stop。此扩展不会操作微信窗口，某些情形需要用户重新打开小程序才能触发注入后的加载事件。
 

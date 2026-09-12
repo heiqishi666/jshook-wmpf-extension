@@ -49,6 +49,7 @@ const call = async (name, args = {}) =>
   parse(await client.callTool({ name, arguments: args }, undefined, { timeout: 30000 }));
 try {
   await client.connect(transport);
+  await call('activate_tools', { names: ['reload_extensions', 'list_extensions'] });
   const loaded = await call('reload_extensions');
   console.log(
     'LOAD',
