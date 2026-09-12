@@ -17,6 +17,8 @@ npm test
 npm run build
 ```
 
+当前已验证的 jshook 0.3.5 必须使用 `MCP_TOOL_PROFILE=full`：search 模式虽可加载扩展并安装后端，但扩展内部 browser_attach 调用会被核心误判为非内置工具，单纯 activate_tools 无法解决。full 会增加工具上下文占用；不要声称默认 search 模式已完整兼容。
+
 在已有 jshook MCP 的启动环境中，将本仓库绝对路径加入 `MCP_PLUGIN_ROOTS`（多个根目录用逗号分隔）。严格加载模式下，将以下命令输出的摘要合并进 `MCP_PLUGIN_ALLOWED_DIGESTS`：
 
 ```powershell
@@ -39,7 +41,7 @@ npm run build
 
 先检查环境。missing 时，已有环境安装授权则调用 `wmpf_install({authorized:true})`；否则解释下载、目录与原生依赖安装脚本并询问。该字段不能替代客户端审批。ready 后调用 `wmpf_start({})`，保存 serviceId 和 endpoint。
 
-默认提示用户手动打开小程序，再在 Chrome 地址栏访问工具返回的 DevTools URL（默认端口 62000）。之后按真实 AppID 选择目标，排除 preload 页面，使用 jshook 内置脚本、断点及网络工具。search 模式下先激活 browser_attach、browser_attach_cdp_target、browser_evaluate_cdp_target 及所需分析工具，避免尚未激活导致调用失败。不要自动登录或重放业务请求。
+默认提示用户手动打开小程序，再在 Chrome 地址栏访问工具返回的 DevTools URL（默认端口 62000）。之后按真实 AppID 选择目标，排除 preload 页面，使用 jshook 内置脚本、断点及网络工具。连接分析请使用上述 full 模式；search 下激活工具只能解决直接调用的可见性，不能修复扩展内部调用的核心限制。不要自动登录或重放业务请求。
 
 用户仍需调试时保持所属 MCP 实例运行；清理临时断点不等于停止服务。仅在用户要求停止或明确的一次性测试结束时调用 stop。此扩展不会操作微信窗口，某些情形需要用户重新打开小程序才能触发注入后的加载事件。
 
